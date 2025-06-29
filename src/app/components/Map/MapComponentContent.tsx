@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
+import { Search, Plus, Minus, Layers } from 'lucide-react';
 import { FeatureCollection } from '@/app/interfaces/geojs';
-
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -14,10 +14,35 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+// Base map configurations
+const baseMaps = {
+  light: {
+    name: 'Light',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  },
+  dark: {
+    name: 'Dark',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  },
+  satellite: {
+    name: 'Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  }
+};
+
 export default function MapComponentContent() {
   const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [currentBaseMap, setCurrentBaseMap] = useState<keyof typeof baseMaps>('light');
+  const [showBaseMapSelector, setShowBaseMapSelector] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
+  const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
 
   useEffect(() => {
     console.log('Attempting to fetch GeoJSON data...');
@@ -45,19 +70,79 @@ export default function MapComponentContent() {
       });
   }, []);
 
+  // Zoom controls
+  const zoomIn = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomIn();
+    }
+  };
 
+  const zoomOut = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomOut();
+    }
+  };
 
- 
+  // Improved search functionality
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    
+    if (!term.trim() || !geoData) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results = geoData.features.filter(feature => {
+      const props = feature.properties;
+      // Search across all relevant properties
+      const searchableText = [
+        props.RTNew,
+        props.Id?.toString(),
+        props.Estimasi?.toString(),
+        props['Sampah Plastik (kg)']?.toString(),
+        props['Sampah Organik (kg)']?.toString(),
+        props['sampah Anorganik (kg)']?.toString()
+      ].join(' ').toLowerCase();
+      
+      return searchableText.includes(term.toLowerCase());
+    });
+
+    setSearchResults(results);
+  };
+
+  // Navigate to search result and open popup
+  const navigateToFeature = (feature: any) => {
+    if (mapRef.current && feature.geometry) {
+      const geoJsonLayer = L.geoJSON(feature);
+      const bounds = geoJsonLayer.getBounds();
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      
+      // Find the corresponding layer in the main GeoJSON layer
+      if (geoJsonLayerRef.current) {
+        geoJsonLayerRef.current.eachLayer((layer: any) => {
+          if (layer.feature?.properties.Id === feature.properties.Id) {
+            // Open popup after a short delay to ensure map has finished moving
+            setTimeout(() => {
+              layer.openPopup();
+            }, 300);
+          }
+        });
+      }
+      
+      setSearchResults([]);
+      setSearchTerm('');
+    }
+  };
+
   const geoJsonStyle = (feature: any) => {
-
     const totalWaste = (feature.properties['Sampah Plastik (kg)'] || 0) + 
                       (feature.properties['Sampah Organik (kg)'] || 0) + 
                       (feature.properties['sampah Anorganik (kg)'] || 0);
     
-    let fillColor = '#green';
+    let fillColor = '#00ff00';
     if (totalWaste > 30) fillColor = '#ff0000'; 
     else if (totalWaste > 20) fillColor = '#ff8800'; 
-    else fillColor = '#00ff00'; 
+    
     return {
       color: '#333',
       weight: 1,
@@ -66,7 +151,6 @@ export default function MapComponentContent() {
       fillOpacity: 0.6
     };
   };
-
 
   const onEachFeature = (feature: any, layer: any) => {
     const props = feature.properties;
@@ -90,21 +174,17 @@ export default function MapComponentContent() {
     
     layer.bindPopup(popupContent);
     
-    // Add hover effects
     layer.on('mouseover', () => {
       layer.setStyle({
         weight: 4,
         opacity: 1,
         fillOpacity: 0.8
       });
+      layer.bringToFront();
     });
     
     layer.on('mouseout', () => {
       layer.setStyle(geoJsonStyle(feature));
-    });
-
-    layer.on('click', () => {
-      console.log('Feature clicked:', props);
     });
   };
 
@@ -132,22 +212,68 @@ export default function MapComponentContent() {
   }
 
   return (
-    <div className="w-full h-screen flex flex-col">
-      {/* Status indicator */}
-      <div className="flex-shrink-0 mb-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-        ✅ GeoJSON loaded successfully! Features: {geoData?.features?.length || 0}
+    <div className="w-full h-screen flex flex-col relative">
+      {/* Search Bar */}
+      <div className="flex-shrink-0 p-4 bg-white shadow-md">
+        <div className="relative max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Cari RT, ID, atau Estimasi"
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-black placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          />
+          
+          {/* Search Results Dropdown */}
+          {searchResults.length > 0 && (
+            <>
+              {/* Overlay to close dropdown when clicking outside */}
+              <div 
+                className="fixed inset-0 z-[998]" 
+                onClick={() => setSearchResults([])}
+              />
+              <div className="absolute top-full left-7 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto z-[999]">
+                {searchResults.map((feature, index) => (
+                  <div
+                    key={index}
+                    onClick={() => navigateToFeature(feature)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="font-medium text-gray-500">
+                      {feature.properties.RTNew || 'RT Data'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      ID: {feature.properties.Id} | Estimasi: {feature.properties.Estimasi}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Plastik: {feature.properties['Sampah Plastik (kg)']}kg | 
+                      Organik: {feature.properties['Sampah Organik (kg)']}kg | 
+                      Anorganik: {feature.properties['sampah Anorganik (kg)']}kg
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-      
-      <div className="flex-1 min-h-0">
+
+      <div className="flex-1 min-h-0 relative">
         <MapContainer
-          center={[-6.979, 107.589]} // Centered on your Indonesian data
-          zoom={18} // Higher zoom to see the small polygon
+          center={[-6.979, 107.589]}
+          zoom={18}
           scrollWheelZoom={true}
           style={{ height: '100%', width: '100%' }}
+          ref={mapRef}
+          zoomControl={false}
         >
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            key={currentBaseMap}
+            url={baseMaps[currentBaseMap].url}
+            attribution={baseMaps[currentBaseMap].attribution}
           />
           
           {geoData && (
@@ -155,18 +281,77 @@ export default function MapComponentContent() {
               data={geoData}
               style={geoJsonStyle}
               onEachFeature={onEachFeature}
+              ref={(ref) => {
+                if (ref) {
+                  geoJsonLayerRef.current = ref;
+                }
+              }}
             />
           )}
-          
         </MapContainer>
-      </div>
-      
-      {/* Data summary */}
-      {geoData && (
-        <div className="flex-shrink-0 mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-          <strong>Data Summary:</strong> {geoData.name} - {geoData.features?.length} feature(s)
+
+        {/* Map Controls - Bottom Center */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-2 bg-white p-2 rounded-md shadow-md">
+          {/* Zoom Controls */}
+          <div className="flex gap-2">
+            <button
+              onClick={zoomIn}
+              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md p-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Zoom In"
+            >
+              <Plus className="h-5 w-5 text-gray-600" />
+            </button>
+            <button
+              onClick={zoomOut}
+              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md p-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Zoom Out"
+            >
+              <Minus className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+
+          {/* Base Map Selector */}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBaseMapSelector(!showBaseMapSelector);
+              }}
+              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-md p-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Change Base Map"
+            >
+              <Layers className="h-5 w-5 text-gray-600" />
+            </button>
+            
+            {showBaseMapSelector && (
+              <>
+                {/* Overlay to close dropdown when clicking outside */}
+                <div 
+                  className="fixed inset-0 z-[999]" 
+                  onClick={() => setShowBaseMapSelector(false)}
+                />
+                <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-300 rounded-md shadow-lg min-w-32 z-[1001]">
+                  {Object.entries(baseMaps).map(([key, map]) => (
+                    <button
+                      key={key}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentBaseMap(key as keyof typeof baseMaps);
+                        setShowBaseMapSelector(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 first:rounded-t-md last:rounded-b-md ${
+                        currentBaseMap === key ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                      }`}
+                    >
+                      {map.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

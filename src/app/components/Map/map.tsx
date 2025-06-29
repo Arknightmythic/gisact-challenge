@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the actual map component with no SSR
