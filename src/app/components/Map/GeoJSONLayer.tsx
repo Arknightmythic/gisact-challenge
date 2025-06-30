@@ -5,10 +5,13 @@ import { FeatureCollection } from '@/app/interfaces/geojs';
 interface GeoJSONLayerProps {
   data: FeatureCollection;
   layerRef: (ref: L.GeoJSON) => void;
+  isVisible: boolean;
 }
 
-export function GeoJSONLayer({ data, layerRef }: GeoJSONLayerProps) {
+export function GeoJSONLayer({ data, layerRef, isVisible }: GeoJSONLayerProps) {
   const geoJsonStyle = (feature: any) => {
+    if (!isVisible) return { opacity: 0, fillOpacity: 0 };
+
     const totalWaste = (feature.properties['Sampah Plastik (kg)'] || 0) + 
                       (feature.properties['Sampah Organik (kg)'] || 0) + 
                       (feature.properties['sampah Anorganik (kg)'] || 0);
@@ -48,19 +51,28 @@ export function GeoJSONLayer({ data, layerRef }: GeoJSONLayerProps) {
     
     layer.bindPopup(popupContent);
     
-    layer.on('mouseover', () => {
-      layer.setStyle({
-        weight: 4,
-        opacity: 1,
-        fillOpacity: 0.8
+    if (isVisible) {
+      layer.on('mouseover', () => {
+        layer.setStyle({
+          weight: 4,
+          opacity: 1,
+          fillOpacity: 0.8
+        });
+        layer.bringToFront();
       });
-      layer.bringToFront();
-    });
-    
-    layer.on('mouseout', () => {
-      layer.setStyle(geoJsonStyle(feature));
-    });
+      
+      layer.on('mouseout', () => {
+        layer.setStyle(geoJsonStyle(feature));
+      });
+    } else {
+      layer.off('mouseover');
+      layer.off('mouseout');
+    }
   };
+
+  if (!isVisible) {
+    return null;
+  }
 
   return (
     <GeoJSON

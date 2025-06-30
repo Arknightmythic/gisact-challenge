@@ -12,8 +12,8 @@ import { GithubIcon } from "lucide-react";
 
 import { GeoJSONLayer } from "./GeoJSONLayer";
 import { BaseMapSelector } from "./MapControls/BaseMapSelectot";
+import { ToggleLayerButton } from "./MapControls/ToggleLayerButton";
 
-// Base map configurations
 const baseMaps = {
   light: {
     name: "Light",
@@ -40,6 +40,7 @@ export function MapComponent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLayerVisible, setIsLayerVisible] = useState(true);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [currentBaseMap, setCurrentBaseMap] =
     useState<keyof typeof baseMaps>("light");
@@ -129,7 +130,7 @@ export function MapComponent() {
       <div className="h-screen w-full bg-gray-100 rounded-lg flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-black">data load success...</p>
+          <p className="text-black">loading data...</p>
         </div>
       </div>
     );
@@ -164,10 +165,15 @@ export function MapComponent() {
             onClose={() => setSearchResults([])}
           />
         </div>
-        <span className="bg-black text-white px-3 py-2 rounded-md flex items-center gap-2 self-start">
+        <a
+          href="https://github.com/Arknightmythic/gisact-challenge"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-black text-white px-3 py-2 rounded-md flex items-center gap-2 hover:bg-gray-800 transition-colors duration-200 shadow-md hover:shadow-lg"
+        >
           <GithubIcon className="w-4 h-4" />
           <h1 className="text-sm font-medium">by Albert</h1>
-        </span>
+        </a>
       </div>
 
       <div className="flex-1 min-h-0 relative">
@@ -193,17 +199,54 @@ export function MapComponent() {
                   geoJsonLayerRef.current = ref;
                 }
               }}
+              isVisible={isLayerVisible}
             />
           )}
         </MapContainer>
 
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-2 bg-white p-2 rounded-md shadow-md">
-          <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} />
-          <BaseMapSelector
-            baseMaps={baseMaps}
-            currentBaseMap={currentBaseMap}
-            onChange={handleBaseMapChange}
-          />
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-col gap-2">
+          <div
+            className={`bg-white/90 backdrop-blur-sm rounded-md shadow-md overflow-hidden transition-all duration-300 ${
+              isLayerVisible ? "max-h-10" : "max-h-10"
+            }`}
+          >
+            <div
+              className={`px-3 py-2 text-center transition-all duration-300 ${
+                isLayerVisible
+                  ? "bg-green-100 text-green-800"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              <p className="text-xs font-medium flex items-center justify-center gap-1">
+                {isLayerVisible ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    {geoData?.name || "Layer"} active
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                    Layer inactive
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white/90 backdrop-blur-sm p-2 rounded-md shadow-md flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-lg">
+            <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} />
+
+            <BaseMapSelector
+              baseMaps={baseMaps}
+              currentBaseMap={currentBaseMap}
+              onChange={handleBaseMapChange}
+            />
+
+            <ToggleLayerButton
+              isVisible={isLayerVisible}
+              onToggle={() => setIsLayerVisible(!isLayerVisible)}
+            />
+          </div>
         </div>
       </div>
     </div>

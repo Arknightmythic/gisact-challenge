@@ -1,4 +1,4 @@
-// GeoJsonInterfaces.ts
+
 
 export interface FeatureCollection {
   type: "FeatureCollection";

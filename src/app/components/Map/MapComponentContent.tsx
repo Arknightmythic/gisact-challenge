@@ -14,7 +14,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Base map configurations
+
 const baseMaps = {
   light: {
     name: 'Light',
@@ -70,7 +70,7 @@ export default function MapComponentContent() {
       });
   }, []);
 
-  // Zoom controls
+  
   const zoomIn = () => {
     if (mapRef.current) {
       mapRef.current.zoomIn();
@@ -83,7 +83,7 @@ export default function MapComponentContent() {
     }
   };
 
-  // Improved search functionality
+ 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     
@@ -94,7 +94,7 @@ export default function MapComponentContent() {
 
     const results = geoData.features.filter(feature => {
       const props = feature.properties;
-      // Search across all relevant properties
+    
       const searchableText = [
         props.RTNew,
         props.Id?.toString(),
@@ -110,18 +110,18 @@ export default function MapComponentContent() {
     setSearchResults(results);
   };
 
-  // Navigate to search result and open popup
+ 
   const navigateToFeature = (feature: any) => {
     if (mapRef.current && feature.geometry) {
       const geoJsonLayer = L.geoJSON(feature);
       const bounds = geoJsonLayer.getBounds();
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
       
-      // Find the corresponding layer in the main GeoJSON layer
+     
       if (geoJsonLayerRef.current) {
         geoJsonLayerRef.current.eachLayer((layer: any) => {
           if (layer.feature?.properties.Id === feature.properties.Id) {
-            // Open popup after a short delay to ensure map has finished moving
+          
             setTimeout(() => {
               layer.openPopup();
             }, 300);
@@ -213,7 +213,6 @@ export default function MapComponentContent() {
 
   return (
     <div className="w-full h-screen flex flex-col relative">
-      {/* Search Bar */}
       <div className="flex-shrink-0 p-4 bg-white shadow-md">
         <div className="relative max-w-md">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -227,10 +226,8 @@ export default function MapComponentContent() {
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-black placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
           
-          {/* Search Results Dropdown */}
           {searchResults.length > 0 && (
             <>
-              {/* Overlay to close dropdown when clicking outside */}
               <div 
                 className="fixed inset-0 z-[998]" 
                 onClick={() => setSearchResults([])}
@@ -290,9 +287,7 @@ export default function MapComponentContent() {
           )}
         </MapContainer>
 
-        {/* Map Controls - Bottom Center */}
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] flex gap-2 bg-white p-2 rounded-md shadow-md">
-          {/* Zoom Controls */}
           <div className="flex gap-2">
             <button
               onClick={zoomIn}
@@ -310,7 +305,6 @@ export default function MapComponentContent() {
             </button>
           </div>
 
-          {/* Base Map Selector */}
           <div className="relative">
             <button
               onClick={(e) => {
@@ -325,7 +319,6 @@ export default function MapComponentContent() {
             
             {showBaseMapSelector && (
               <>
-                {/* Overlay to close dropdown when clicking outside */}
                 <div 
                   className="fixed inset-0 z-[999]" 
                   onClick={() => setShowBaseMapSelector(false)}
