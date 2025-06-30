@@ -13,6 +13,7 @@ import { GithubIcon } from "lucide-react";
 import { GeoJSONLayer } from "./GeoJSONLayer";
 import { BaseMapSelector } from "./MapControls/BaseMapSelectot";
 import { ToggleLayerButton } from "./MapControls/ToggleLayerButton";
+import { Legend } from "./Legends/Legend";
 
 const baseMaps = {
   light: {
@@ -204,7 +205,9 @@ export function MapComponent() {
           )}
         </MapContainer>
 
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-col gap-2">
+        <Legend isVisible={isLayerVisible} />
+
+        <div className="absolute bottom-4 md:left-1/2 left-3/4 transform -translate-x-1/2 z-[1000] flex flex-col gap-2">
           <div
             className={`bg-white/90 backdrop-blur-sm rounded-md shadow-md overflow-hidden transition-all duration-300 ${
               isLayerVisible ? "max-h-10" : "max-h-10"
