@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 
 // Dynamically import the actual map component with no SSR
-const DynamicMapComponent = dynamic(() => import('./MapComponentContent'), {
+const DynamicMapComponent = dynamic(() => import('./MainMap'), {
   ssr: false,
   loading: () => (
     <div className="h-96 w-full bg-gray-100 rounded-lg flex items-center justify-center">
